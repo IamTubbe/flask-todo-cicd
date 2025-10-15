@@ -17,7 +17,7 @@ def create_app(config_name=None):
     # Load configuration
     if config_name is None:
         config_name = os.getenv('FLASK_CONFIG', 'default')
-    
+
     from app.config import config
     app.config.from_object(config[config_name])
 
