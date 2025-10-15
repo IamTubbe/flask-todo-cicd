@@ -1,62 +1,57 @@
 import os
 from flask import Flask, jsonify
-from app.models import db
-from app.routes import api
-from app.config import config
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
+
+# สร้าง instance ของ SQLAlchemy และ Migrate
+db = SQLAlchemy()
+migrate = Migrate()
+
 
 def create_app(config_name=None):
-    """Application factory pattern"""
-    if config_name is None:
-        config_name = os.getenv('FLASK_ENV', 'development')
-    
+    """
+    Application Factory Function
+    """
     app = Flask(__name__)
-    app.config.from_object(config[config_name])
-    config[config_name].init_app(app)
+
+    # Load configuration
+    if config_name is None:
+        config_name = os.getenv('FLASK_CONFIG', 'default')
     
+    from app.config import config
+    app.config.from_object(config[config_name])
+
     # Initialize extensions
     db.init_app(app)
-    
+    migrate.init_app(app, db)
+
     # Register blueprints
-    app.register_blueprint(api, url_prefix='/api')
-    
-    # Root endpoint
-    @app.route('/')
-    def index():
-        return jsonify({
-            'message': 'Flask Todo API',
-            'version': '1.0.0',
-            'endpoints': {
-                'health': '/api/health',
-                'todos': '/api/todos'
-            }
-        })
-    
-    # Error handlers
+    from .routes import bp as main_bp
+    app.register_blueprint(main_bp)
+
+    # Register error handlers
+    register_error_handlers(app)
+
+    return app
+
+
+def register_error_handlers(app):
+    """Register error handlers for the app."""
+
     @app.errorhandler(404)
-    def not_found(error):
+    def not_found_error(error):
         return jsonify({
-            'success': False,
-            'error': 'Resource not found'
+            "success": False,
+            "error": "Resource not found",
+            "message": "The requested URL was not found on the server."
         }), 404
-    
+
     @app.errorhandler(500)
     def internal_error(error):
-        return jsonify({
-            'success': False,
-            'error': 'Internal server error'
-        }), 500
-    
-    @app.errorhandler(Exception)
-    def handle_exception(error):
-        """Handle all unhandled exceptions"""
+        # Rollback the session in case of a database error
         db.session.rollback()
         return jsonify({
-            'success': False,
-            'error': 'Internal server error'
+            "success": False,
+            "error": "Internal server error",
+            "message": "An unexpected error has occurred. Please try again later."
         }), 500
-    
-    # Create tables
-    with app.app_context():
-        db.create_all()
-    
-    return app
