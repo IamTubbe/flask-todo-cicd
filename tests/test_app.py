@@ -11,7 +11,8 @@ def app():
     """Create and configure a new app instance for each test module."""
     app = create_app('testing')
     
-    with app.app.app_context():
+    # Corrected line: removed the extra '.app'
+    with app.app_context():
         db.create_all()
         yield app
         db.drop_all()
@@ -26,7 +27,8 @@ def client(app):
 @pytest.fixture(scope='function')
 def init_database(app):
     """Clear all data from tables before each test."""
-    with app.app.app_context():
+    # Corrected line: removed the extra '.app'
+    with app.app_context():
         db.session.query(Todo).delete()
         db.session.commit()
 
@@ -92,6 +94,7 @@ class TestTodoAPI:
     
     def test_get_specific_todo(self, client, app, init_database):
         """Test getting a specific todo by ID"""
+        # Corrected line: removed the extra '.app'
         with app.app_context():
             todo = Todo(title='Specific Todo')
             db.session.add(todo)
@@ -109,6 +112,7 @@ class TestTodoAPI:
 
     def test_update_todo(self, client, app, init_database):
         """Test updating an existing todo"""
+        # Corrected line: removed the extra '.app'
         with app.app_context():
             todo = Todo(title='Original Title')
             db.session.add(todo)
@@ -130,6 +134,7 @@ class TestTodoAPI:
     @patch('app.routes.db.session.commit')
     def test_update_todo_db_error(self, mock_commit, client, app, init_database):
         """Test a database error during todo update"""
+        # Corrected line: removed the extra '.app'
         with app.app_context():
             todo = Todo(title='To be updated')
             db.session.add(todo)
@@ -143,6 +148,7 @@ class TestTodoAPI:
 
     def test_delete_todo(self, client, app, init_database):
         """Test deleting a todo"""
+        # Corrected line: removed the extra '.app'
         with app.app_context():
             todo = Todo(title='To be deleted')
             db.session.add(todo)
@@ -165,6 +171,7 @@ class TestTodoAPI:
     @patch('app.routes.db.session.commit')
     def test_delete_todo_db_error(self, mock_commit, client, app, init_database):
         """Test a database error during todo deletion"""
+        # Corrected line: removed the extra '.app'
         with app.app_context():
             todo = Todo(title='To be deleted')
             db.session.add(todo)
