@@ -19,15 +19,14 @@ class DevelopmentConfig(Config):
 class TestingConfig(Config):
     """Testing configuration."""
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'  # Use in-memory database for tests
-    WTF_CSRF_ENABLED = False  # Disable CSRF for tests
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'
+    WTF_CSRF_ENABLED = False
 
 
 class ProductionConfig(Config):
     """Production configuration."""
-    # Production specific configs go here
-    # For example, DATABASE_URL will be set by the hosting provider
-    pass
+    # Add this line
+    DEBUG = False
 
 
 config = {
