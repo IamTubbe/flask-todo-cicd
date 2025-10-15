@@ -46,6 +46,15 @@ def create_app(config_name=None):
             'error': 'Internal server error'
         }), 500
     
+    @app.errorhandler(Exception)
+    def handle_exception(error):
+        """Handle all unhandled exceptions"""
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error'
+        }), 500
+    
     # Create tables
     with app.app_context():
         db.create_all()
