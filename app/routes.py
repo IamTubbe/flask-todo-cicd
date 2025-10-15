@@ -1,133 +1,133 @@
 from flask import Blueprint, jsonify, request
 from sqlalchemy.exc import SQLAlchemyError
-from app.models import db, Todo
 
-bp = Blueprint('main', __name__)
+from app.models import Todo, db
 
-
-@bp.route('/')
-def index():
-    """API Root Endpoint"""
-    return jsonify({
-        'message': 'Welcome to the Flask Todo API!',
-        'version': '1.0.0',
-        'endpoints': {
-            'health': '/api/health',
-            'todos': '/api/todos'
-        }
-    })
+api = Blueprint("api", __name__)
 
 
-@bp.route('/api/health')
+@api.route("/health", methods=["GET"])
 def health_check():
-    """Health check endpoint"""
+    """Health check endpoint for monitoring"""
     try:
-        # Check database connection
-        db.session.execute(db.text('SELECT 1'))
-        db_status = 'connected'
-        status_code = 200
-        overall_status = 'healthy'
-    except Exception as e:
-        db_status = 'disconnected'
-        status_code = 503
-        overall_status = 'unhealthy'
-        return jsonify({
-            'status': overall_status,
-            'database': db_status,
-            'error': str(e)
-        }), status_code
-
-    return jsonify({
-        'status': overall_status,
-        'database': db_status
-    }), status_code
+        db.session.execute(db.text("SELECT 1"))
+        return jsonify({"status": "healthy", "database": "connected"}), 200
+    except Exception:
+        return (
+            jsonify(
+                {
+                    "status": "unhealthy",
+                    "database": "disconnected",
+                    "error": "Database connection failed",
+                }
+            ),
+            503,
+        )
 
 
-@bp.route('/api/todos', methods=['GET'])
+@api.route("/todos", methods=["GET"])
 def get_todos():
     """Get all todo items"""
     try:
         todos = Todo.query.order_by(Todo.created_at.desc()).all()
-        return jsonify({
-            'success': True,
-            'count': len(todos),
-            'data': [todo.to_dict() for todo in todos]
-        })
-    except SQLAlchemyError as e:
-        return jsonify({'success': False, 'error': f'Database error: {str(e)}'}), 500
+        return (
+            jsonify(
+                {
+                    "success": True,
+                    "data": [todo.to_dict() for todo in todos],
+                    "count": len(todos),
+                }
+            ),
+            200,
+        )
+    except SQLAlchemyError:
+        return jsonify({"success": False, "error": "Database error occurred"}), 500
 
 
-@bp.route('/api/todos', methods=['POST'])
+@api.route("/todos/<int:todo_id>", methods=["GET"])
+def get_todo(todo_id):
+    """Get a specific todo item"""
+    todo = Todo.query.get(todo_id)
+    if not todo:
+        return jsonify({"success": False, "error": "Todo not found"}), 404
+
+    return jsonify({"success": True, "data": todo.to_dict()}), 200
+
+
+@api.route("/todos", methods=["POST"])
 def create_todo():
-    """Create a new todo"""
+    """Create a new todo item"""
     data = request.get_json()
 
-    if not data or 'title' not in data or not data['title'].strip():
-        return jsonify({'success': False, 'error': 'Title is required'}), 400
+    if not data or not data.get("title"):
+        return jsonify({"success": False, "error": "Title is required"}), 400
 
     try:
-        new_todo = Todo(
-            title=data['title'],
-            description=data.get('description', '')
+        todo = Todo(title=data["title"], description=data.get("description", ""))
+        db.session.add(todo)
+        db.session.commit()
+
+        return (
+            jsonify(
+                {
+                    "success": True,
+                    "data": todo.to_dict(),
+                    "message": "Todo created successfully",
+                }
+            ),
+            201,
         )
-        db.session.add(new_todo)
-        db.session.commit()
-        return jsonify({
-            'success': True,
-            'data': new_todo.to_dict(),
-            'message': 'Todo created successfully'
-        }), 201
-    except SQLAlchemyError as e:
+    except SQLAlchemyError:
         db.session.rollback()
-        return jsonify({'success': False, 'error': f'Database error: {str(e)}'}), 500
+        return jsonify({"success": False, "error": "Failed to create todo"}), 500
 
 
-@bp.route('/api/todos/<int:id>', methods=['GET'])
-def get_todo(id):
-    """Get a single todo by its ID"""
+@api.route("/todos/<int:todo_id>", methods=["PUT"])
+def update_todo(todo_id):
+    """Update an existing todo item"""
+    todo = Todo.query.get(todo_id)
+    if not todo:
+        return jsonify({"success": False, "error": "Todo not found"}), 404
+
+    data = request.get_json()
+
     try:
-        todo = Todo.query.get_or_404(id)
-        return jsonify({
-            'success': True,
-            'data': todo.to_dict()
-        })
-    except SQLAlchemyError as e:
-        return jsonify({'success': False, 'error': f'Database error: {str(e)}'}), 500
+        if "title" in data:
+            todo.title = data["title"]
+        if "description" in data:
+            todo.description = data["description"]
+        if "completed" in data:
+            todo.completed = data["completed"]
 
-
-@bp.route('/api/todos/<int:id>', methods=['PUT'])
-def update_todo(id):
-    """Update an existing todo"""
-    try:
-        todo = Todo.query.get_or_404(id)
-        data = request.get_json()
-        
-        todo.title = data.get('title', todo.title)
-        todo.description = data.get('description', todo.description)
-        todo.completed = data.get('completed', todo.completed)
         db.session.commit()
-        
-        return jsonify({
-            'success': True,
-            'data': todo.to_dict(),
-            'message': 'Todo updated successfully'
-        })
-    except SQLAlchemyError as e:
+
+        return (
+            jsonify(
+                {
+                    "success": True,
+                    "data": todo.to_dict(),
+                    "message": "Todo updated successfully",
+                }
+            ),
+            200,
+        )
+    except SQLAlchemyError:
         db.session.rollback()
-        return jsonify({'success': False, 'error': f'Database error: {str(e)}'}), 500
+        return jsonify({"success": False, "error": "Failed to update todo"}), 500
 
 
-@bp.route('/api/todos/<int:id>', methods=['DELETE'])
-def delete_todo(id):
-    """Delete a todo"""
+@api.route("/todos/<int:todo_id>", methods=["DELETE"])
+def delete_todo(todo_id):
+    """Delete a todo item"""
+    todo = Todo.query.get(todo_id)
+    if not todo:
+        return jsonify({"success": False, "error": "Todo not found"}), 404
+
     try:
-        todo = Todo.query.get_or_404(id)
         db.session.delete(todo)
         db.session.commit()
-        return jsonify({
-            'success': True,
-            'message': 'Todo deleted successfully'
-        })
-    except SQLAlchemyError as e:
+
+        return jsonify({"success": True, "message": "Todo deleted successfully"}), 200
+    except SQLAlchemyError:
         db.session.rollback()
-        return jsonify({'success': False, 'error': f'Database error: {str(e)}'}), 500
+        return jsonify({"success": False, "error": "Failed to delete todo"}), 500
