@@ -11,7 +11,7 @@ def app():
     """Create and configure a new app instance for each test module."""
     app = create_app('testing')
     
-    with app.app_context():
+    with app.app.app_context():
         db.create_all()
         yield app
         db.drop_all()
@@ -25,8 +25,8 @@ def client(app):
 # This fixture is run for each test function, ensuring a clean database.
 @pytest.fixture(scope='function')
 def init_database(app):
-    """Clear all data from tables."""
-    with app.app_context():
+    """Clear all data from tables before each test."""
+    with app.app.app_context():
         db.session.query(Todo).delete()
         db.session.commit()
 
