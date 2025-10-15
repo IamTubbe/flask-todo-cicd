@@ -21,11 +21,9 @@ def create_app(config_name=None):
     from app.config import config
     app.config.from_object(config[config_name])
 
-    # --- เพิ่มโค้ดส่วนนี้ ---
     # Ensure DATABASE_URL is set in production
     if config_name == 'production' and not app.config.get('SQLALCHEMY_DATABASE_URI'):
         raise AssertionError('DATABASE_URL must be set for the production environment.')
-    # -----------------------
 
     # Initialize extensions
     db.init_app(app)

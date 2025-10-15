@@ -85,24 +85,28 @@ def create_todo():
 @bp.route('/api/todos/<int:id>', methods=['GET'])
 def get_todo(id):
     """Get a single todo by its ID"""
-    todo = Todo.query.get_or_404(id)
-    return jsonify({
-        'success': True,
-        'data': todo.to_dict()
-    })
+    try:
+        todo = Todo.query.get_or_404(id)
+        return jsonify({
+            'success': True,
+            'data': todo.to_dict()
+        })
+    except SQLAlchemyError as e:
+        return jsonify({'success': False, 'error': f'Database error: {str(e)}'}), 500
 
 
 @bp.route('/api/todos/<int:id>', methods=['PUT'])
 def update_todo(id):
     """Update an existing todo"""
-    todo = Todo.query.get_or_404(id)
-    data = request.get_json()
-
     try:
+        todo = Todo.query.get_or_404(id)
+        data = request.get_json()
+        
         todo.title = data.get('title', todo.title)
         todo.description = data.get('description', todo.description)
         todo.completed = data.get('completed', todo.completed)
         db.session.commit()
+        
         return jsonify({
             'success': True,
             'data': todo.to_dict(),
@@ -116,8 +120,8 @@ def update_todo(id):
 @bp.route('/api/todos/<int:id>', methods=['DELETE'])
 def delete_todo(id):
     """Delete a todo"""
-    todo = Todo.query.get_or_404(id)
     try:
+        todo = Todo.query.get_or_404(id)
         db.session.delete(todo)
         db.session.commit()
         return jsonify({
